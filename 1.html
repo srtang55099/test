@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Image Model</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #666666;
+            background-image: url('https://i.pinimg.com/originals/59/0d/73/590d73050637dcb12e9af999f8d6437b.gif');
+            background-position: center;
+            background-size: cover;
+            background-repeat: no-repeat;
+            font-family: 'Press Start 2P', cursive;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1, p {
+            text-align: center;
+            border: 4px solid #FF8C00; /* สีกรอบโทนอุ่น */
+            border-radius: 12px;
+            padding: 10px; /* ลดการเว้นระยะภายใน */
+            background-color: rgba(255, 140, 0, 0.7); /* สีพื้นหลังโทนอุ่น */
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.8); /* เงาเพื่อความเด่น */
+            margin: 0 0 10px 0; /* ลดระยะห่างด้านล่าง */
+        }
+
+        h1 {
+            font-size: 1.5em; /* ขนาดฟอนต์หัวเรื่องลดลง */
+            text-shadow: 0 0 6px rgba(255, 255, 255, 0.8); /* ลดความหนาของเงา */
+        }
+
+        p {
+            font-size: 1em; /* ขนาดฟอนต์พารากราฟลดลง */
+            text-shadow: 0 0 3px rgba(255, 255, 255, 0.8); /* ลดความหนาของเงา */
+        }
+
+        #webcam-container {
+            position: relative;
+            border: 5px solid rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+            margin-bottom: 20px;
+        }
+
+        #label-container {
+            border: 5px solid rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+            text-align: left;
+            max-width: 80%;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: linear-gradient(45deg, rgba(255, 182, 193, 0.8), rgba(173, 216, 230, 0.8));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.5s, transform 0.3s;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            margin: 5px; /* เพิ่มระยะห่างระหว่างปุ่ม */
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, rgba(255, 182, 193, 1), rgba(173, 216, 230, 1));
+            transform: scale(1.1);
+        }
+
+        button:active {
+            background: linear-gradient(45deg, rgba(255, 182, 193, 0.8), rgba(173, 216, 230, 0.8));
+            transform: scale(0.95);
+        }
+
+        .prediction {
+            font-size: 1em; /* ลดขนาดฟอนต์ของการคาดการณ์ */
+            margin: 5px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* ฟิลเตอร์เกรย์สเกล */
+        .grayscale {
+            filter: grayscale(100%);
+        }
+    </style>
+</head>
+<body>
+    <h1>Teachable Machine Image Classification</h1>
+    <p>Click the button below to start the webcam and see the predictions.</p>
+    <button id="start-button" type="button">Start</button>
+    <button id="toggle-filter" type="button" onclick="toggleFilter()">ใส่ฟิลเตอร์</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/vISBUGN6W/";
+
+        let model, webcam, labelContainer, maxPredictions;
+        let filterApplied = false;
+
+        async function init() {
+            try {
+                if (model && webcam) {
+                    window.requestAnimationFrame(loop);
+                    return;
+                }
+                
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
+
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                const flip = true;
+                webcam = new tmImage.Webcam(200, 200, flip);
+                await webcam.setup();
+                await webcam.play();
+
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                labelContainer = document.getElementById("label-container");
+                for (let i = 0; i < maxPredictions; i++) {
+                    const div = document.createElement("div");
+                    div.className = "prediction";
+                    labelContainer.appendChild(div);
+                }
+
+                document.getElementById("start-button").classList.add("hidden");
+
+                window.requestAnimationFrame(loop);
+            } catch (error) {
+                console.error("Error initializing the model or webcam:", error);
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction = 
+                    prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(2) + "%";
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+            }
+        }
+
+        function toggleFilter() {
+            filterApplied = !filterApplied;
+            document.getElementById("webcam-container").classList.toggle("grayscale", filterApplied);
+        }
+
+        document.getElementById("start-button").addEventListener("click", init);
+    </script>
+</body>
+</html>
